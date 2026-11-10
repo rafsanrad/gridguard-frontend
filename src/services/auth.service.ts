@@ -35,6 +35,16 @@ export interface VerifyEmailOtpInput {
   otp: string;
 }
 
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  email: string;
+  otp: string;
+  newPassword: string;
+}
+
 export const authService = {
   login: (payload: LoginInput) =>
     apiClient<
@@ -68,6 +78,18 @@ export const authService = {
 
   verifyEmailOtp: (payload: VerifyEmailOtpInput) =>
     apiClient<ApiResponse<unknown>>("/auth/verify-email-otp", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  forgotPassword: (payload: ForgotPasswordInput) =>
+    apiClient<ApiResponse<unknown>>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  resetPassword: (payload: ResetPasswordInput) =>
+    apiClient<ApiResponse<unknown>>("/auth/reset-password", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
