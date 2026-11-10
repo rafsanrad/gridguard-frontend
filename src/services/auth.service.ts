@@ -20,6 +20,21 @@ export interface LoginInput {
   password: string;
 }
 
+export interface RegisterInput {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export interface VerifyEmailInput {
+  email: string;
+}
+
+export interface VerifyEmailOtpInput {
+  email: string;
+  otp: string;
+}
+
 export const authService = {
   login: (payload: LoginInput) =>
     apiClient<
@@ -35,7 +50,25 @@ export const authService = {
   getMe: () => apiClient<ApiResponse<AuthUser>>("/auth/me"),
 
   logout: () =>
-  apiClient<ApiResponse<null>>("/auth/logout", {
-    method: "POST",
-  }),
+    apiClient<ApiResponse<null>>("/auth/logout", {
+      method: "POST",
+    }),
+
+  register: (payload: RegisterInput) =>
+    apiClient<ApiResponse<unknown>>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  verifyEmail: (payload: VerifyEmailInput) =>
+    apiClient<ApiResponse<unknown>>("/auth/verify-email", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  verifyEmailOtp: (payload: VerifyEmailOtpInput) =>
+    apiClient<ApiResponse<unknown>>("/auth/verify-email-otp", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
