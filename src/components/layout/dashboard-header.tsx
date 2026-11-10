@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { UserRound } from "lucide-react";
+import LogoutButton from "@/components/auth/logout-button";
 
 import ModeToggle from "@/components/shared/mode-toggle";
 import type { AuthUser } from "@/services/auth.service";
@@ -28,6 +29,7 @@ export default function DashboardHeader({ user }: DashboardHeaderProps) {
 
       <div className="flex items-center gap-3">
         <ModeToggle />
+        <LogoutButton />
 
         <div className="flex items-center gap-2 border-l pl-3">
           <div className="flex size-9 items-center justify-center rounded-full bg-primary/10">

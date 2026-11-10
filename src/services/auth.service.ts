@@ -33,4 +33,9 @@ export const authService = {
     }),
 
   getMe: () => apiClient<ApiResponse<AuthUser>>("/auth/me"),
+
+  logout: () =>
+  apiClient<ApiResponse<null>>("/auth/logout", {
+    method: "POST",
+  }),
 };
