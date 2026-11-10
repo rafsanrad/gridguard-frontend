@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api-client";
+import type { Area } from "@/services/area.service";
 
 export type UserRole = "ADMIN" | "OPERATOR" | "CUSTOMER";
 
@@ -7,6 +8,8 @@ export interface AuthUser {
   name: string;
   email: string;
   role: UserRole;
+  areaId: string | null;
+  area: Area | null;
 }
 
 export interface ApiResponse<T> {
