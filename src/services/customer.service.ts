@@ -66,6 +66,27 @@ export interface CustomerPayment {
   };
 }
 
+export interface CreatePaymentPayload {
+  serviceRequestId: string;
+}
+
+export interface PaymentInitiationResponse {
+  success: boolean;
+  message: string;
+  data: {
+    payment: {
+      id: string;
+      status: string;
+      provider: string;
+      amount: string;
+      currency: string;
+    };
+    checkoutUrl: string;
+    paymentID?: string;
+    sessionId?: string;
+  };
+}
+
 export interface CustomerNotification {
   id: string;
   title: string;
@@ -135,6 +156,18 @@ export const customerService = {
       message: string;
       data: CustomerServiceRequest;
     }>("/service-requests", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  createBkashPayment: (payload: CreatePaymentPayload) =>
+    apiClient<PaymentInitiationResponse>("/payments/create", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  createStripePayment: (payload: CreatePaymentPayload) =>
+    apiClient<PaymentInitiationResponse>("/payments/stripe/create", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

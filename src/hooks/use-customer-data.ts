@@ -68,3 +68,15 @@ export function useCreateServiceRequest() {
     },
   });
 }
+
+export function useCreateBkashPayment() {
+  return useMutation({
+    mutationFn: customerService.createBkashPayment,
+  });
+}
+
+export function useCreateStripePayment() {
+  return useMutation({
+    mutationFn: customerService.createStripePayment,
+  });
+}

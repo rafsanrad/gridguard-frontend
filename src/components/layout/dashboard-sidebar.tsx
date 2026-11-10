@@ -6,6 +6,7 @@ import {
   Activity,
   CalendarDays,
   ClipboardList,
+  CreditCard,
   House,
   LayoutDashboard,
   MapPin,
@@ -40,6 +41,11 @@ const sidebarLinks = {
     { label: "Report Outage", href: "/customer/report-outage", icon: Zap },
     { label: "My Requests", href: "/customer/requests", icon: ClipboardList },
     { label: "My Area", href: "/customer/my-area", icon: House },
+    {
+      label: "Payments",
+      href: "/customer/payments",
+      icon: CreditCard,
+    },
   ],
 };
 

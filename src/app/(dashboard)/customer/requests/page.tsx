@@ -31,6 +31,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ServiceRequestPayment } from "@/components/dashboard/service-request-payment";
 
 const requestSchema = z.object({
   title: z
@@ -371,6 +372,11 @@ export default function MyRequestsPage() {
                       Completed {formatDate(request.completedAt)}
                     </p>
                   )}
+
+                  <ServiceRequestPayment
+                    serviceRequestId={request.id}
+                    status={request.status}
+                  />
                 </div>
               ))}
             </div>
