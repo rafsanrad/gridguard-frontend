@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
 import { toast } from "sonner";
 
@@ -10,6 +11,8 @@ import { Button } from "@/components/ui/button";
 
 export default function LogoutButton() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   async function handleLogout() {
@@ -18,8 +21,13 @@ export default function LogoutButton() {
     setIsLoggingOut(true);
 
     try {
+      // 1. Clear authentication cookies through the backend
       await authService.logout();
 
+      // 2. Clear all user-specific cached data
+      queryClient.clear();
+
+      // 3. Redirect to login
       toast.success("Logged out successfully");
 
       router.replace("/login");

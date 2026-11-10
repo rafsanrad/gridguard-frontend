@@ -4,10 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "@tanstack/react-form";
+import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { toast } from "sonner";
 
-import { authService } from "@/services/auth.service";
+import { authService, type UserRole } from "@/services/auth.service";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,17 +26,16 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-type LoginResponse = {
-  success: boolean;
-  message: string;
-  data: {
-    accessToken: string;
-    refreshToken: string;
-  };
+const dashboardRoutes: Record<UserRole, string> = {
+  ADMIN: "/admin/dashboard",
+  OPERATOR: "/operator/dashboard",
+  CUSTOMER: "/customer/dashboard",
 };
 
 export default function LoginForm() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+
   const [serverError, setServerError] = useState("");
 
   const form = useForm({
@@ -50,20 +51,20 @@ export default function LoginForm() {
       setServerError("");
 
       try {
-        // Step 1: Login
+        // 1. Authenticate
         await authService.login(value);
 
-        // Step 2: Fetch authenticated user
+        // 2. Fetch authenticated user
         const response = await authService.getMe();
         const user = response.data;
 
-        // Step 3: Redirect based on role
-        const dashboardRoutes = {
-          ADMIN: "/admin/dashboard",
-          OPERATOR: "/operator/dashboard",
-          CUSTOMER: "/customer/dashboard",
-        };
+        // 3. Clear cached data from any previous session
+        queryClient.clear();
 
+        // 4. Cache the newly authenticated user
+        queryClient.setQueryData(["auth", "me"], user);
+
+        // 5. Redirect based on role
         toast.success(`Welcome back, ${user.name}!`);
 
         router.replace(dashboardRoutes[user.role]);

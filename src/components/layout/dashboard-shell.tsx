@@ -6,12 +6,8 @@ import { Menu, ShieldCheck } from "lucide-react";
 
 import DashboardSidebar from "@/components/layout/dashboard-sidebar";
 import DashboardHeader from "@/components/layout/dashboard-header";
-
-import {
-  authService,
-  type AuthUser,
-  type UserRole,
-} from "@/services/auth.service";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import type { UserRole } from "@/services/auth.service";
 
 import { Button } from "@/components/ui/button";
 
@@ -33,47 +29,28 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const { data: user, isPending, isError } = useCurrentUser();
+
+  const rolePrefix = user ? `/${user.role.toLowerCase()}` : null;
+
+  const isAuthorizedRoute =
+    !!rolePrefix &&
+    (pathname === rolePrefix || pathname.startsWith(`${rolePrefix}/`));
+
   useEffect(() => {
-    let active = true;
-
-    async function loadUser() {
-      try {
-        const response = await authService.getMe();
-
-        if (!active) return;
-
-        const currentUser = response.data;
-        const rolePrefix = `/${currentUser.role.toLowerCase()}`;
-
-        if (pathname !== rolePrefix && !pathname.startsWith(`${rolePrefix}/`)) {
-          router.replace(dashboardRoutes[currentUser.role]);
-          return;
-        }
-
-        setUser(currentUser);
-      } catch {
-        if (active) {
-          router.replace("/login");
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
+    if (isError) {
+      router.replace("/login");
+      return;
     }
 
-    void loadUser();
+    if (user && !isAuthorizedRoute) {
+      router.replace(dashboardRoutes[user.role]);
+    }
+  }, [isError, user, isAuthorizedRoute, router]);
 
-    return () => {
-      active = false;
-    };
-  }, [pathname, router]);
-
-  if (loading || !user) {
+  if (isPending || isError || !user || !isAuthorizedRoute) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-muted-foreground">Loading dashboard...</p>
