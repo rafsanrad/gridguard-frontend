@@ -43,7 +43,15 @@ const sidebarLinks = {
   ],
 };
 
-export default function DashboardSidebar({ role }: { role: UserRole }) {
+interface DashboardSidebarProps {
+  role: UserRole;
+  onNavigate?: () => void;
+}
+
+export default function DashboardSidebar({
+  role,
+  onNavigate,
+}: DashboardSidebarProps) {
   const pathname = usePathname();
   const links = sidebarLinks[role];
 
@@ -68,6 +76,7 @@ export default function DashboardSidebar({ role }: { role: UserRole }) {
             <Link
               key={link.href}
               href={link.href}
+              onClick={onNavigate}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
                 isActive
