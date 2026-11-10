@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   customerService,
   type CustomerQueryParams,
@@ -38,5 +38,19 @@ export function useMyNotifications(params: CustomerQueryParams = {}) {
   return useQuery({
     queryKey: [...customerQueryKeys.notifications, params],
     queryFn: () => customerService.getMyNotifications(params),
+  });
+}
+
+export function useCreateOutageReport() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: customerService.createOutageReport,
+
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: customerQueryKeys.outageReports,
+      });
+    },
   });
 }

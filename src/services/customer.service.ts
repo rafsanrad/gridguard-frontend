@@ -25,6 +25,11 @@ export interface CustomerOutageReport {
   updatedAt: string;
 }
 
+export interface CreateOutageReportPayload {
+  description?: string;
+  location?: string;
+}
+
 export interface CustomerServiceRequest {
   id: string;
   title: string;
@@ -107,4 +112,14 @@ export const customerService = {
     apiClient<PaginatedResponse<CustomerNotification>>(
       `/notifications/my?${buildQueryString(params)}`,
     ),
+
+  createOutageReport: (payload: CreateOutageReportPayload) =>
+    apiClient<{
+      success: boolean;
+      message: string;
+      data: CustomerOutageReport;
+    }>("/outage-reports", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
