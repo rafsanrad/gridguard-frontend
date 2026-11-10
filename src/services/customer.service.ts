@@ -30,6 +30,12 @@ export interface CreateOutageReportPayload {
   location?: string;
 }
 
+export interface CreateServiceRequestPayload {
+  title: string;
+  description?: string;
+  amount: number;
+}
+
 export interface CustomerServiceRequest {
   id: string;
   title: string;
@@ -119,6 +125,16 @@ export const customerService = {
       message: string;
       data: CustomerOutageReport;
     }>("/outage-reports", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  createServiceRequest: (payload: CreateServiceRequestPayload) =>
+    apiClient<{
+      success: boolean;
+      message: string;
+      data: CustomerServiceRequest;
+    }>("/service-requests", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

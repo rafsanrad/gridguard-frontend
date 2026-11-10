@@ -54,3 +54,17 @@ export function useCreateOutageReport() {
     },
   });
 }
+
+export function useCreateServiceRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: customerService.createServiceRequest,
+
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: customerQueryKeys.serviceRequests,
+      });
+    },
+  });
+}
