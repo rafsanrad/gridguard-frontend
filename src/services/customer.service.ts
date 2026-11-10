@@ -171,4 +171,13 @@ export const customerService = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  markNotificationAsRead: (id: string) =>
+    apiClient<{
+      success: boolean;
+      message: string;
+      data: CustomerNotification;
+    }>(`/notifications/${id}/read`, {
+      method: "PATCH",
+    }),
 };

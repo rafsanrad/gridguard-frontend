@@ -80,3 +80,17 @@ export function useCreateStripePayment() {
     mutationFn: customerService.createStripePayment,
   });
 }
+
+export function useMarkNotificationAsRead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: customerService.markNotificationAsRead,
+
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: customerQueryKeys.notifications,
+      });
+    },
+  });
+}

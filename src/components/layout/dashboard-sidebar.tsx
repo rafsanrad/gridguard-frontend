@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Activity,
+  Bell,
   CalendarDays,
   ClipboardList,
   CreditCard,
@@ -45,6 +46,11 @@ const sidebarLinks = {
       label: "Payments",
       href: "/customer/payments",
       icon: CreditCard,
+    },
+    {
+      label: "Notifications",
+      href: "/customer/notifications",
+      icon: Bell,
     },
   ],
 };
