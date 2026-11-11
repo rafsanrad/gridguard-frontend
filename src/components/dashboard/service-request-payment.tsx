@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { CreditCard, Loader2, Wallet } from "lucide-react";
+import { CreditCard, Loader2} from "lucide-react";
 
 import {
   useCreateBkashPayment,

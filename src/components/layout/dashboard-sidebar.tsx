@@ -47,6 +47,11 @@ const sidebarLinks = {
       href: "/admin/settings",
       icon: Settings,
     },
+    {
+      label: "Service Requests",
+      href: "/admin/service-requests",
+      icon: ClipboardList,
+    },
   ],
 
   OPERATOR: [
@@ -67,7 +72,7 @@ const sidebarLinks = {
     },
     {
       label: "Service Requests",
-      href: "/operator/requests",
+      href: "/operator/service-requests",
       icon: ClipboardList,
     },
     {
