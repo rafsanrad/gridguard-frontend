@@ -7,6 +7,7 @@ import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { toast } from "sonner";
+import { ShieldCheck, Wrench, UserRound, Loader2 } from "lucide-react";
 
 import { authService, type UserRole } from "@/services/auth.service";
 
@@ -32,11 +33,91 @@ const dashboardRoutes: Record<UserRole, string> = {
   CUSTOMER: "/customer/dashboard",
 };
 
+type LoginCredentials = {
+  email: string;
+  password: string;
+};
+
+type DemoAccount = {
+  role: UserRole;
+  label: string;
+  email: string | undefined;
+  password: string | undefined;
+};
+
+const demoAccounts: DemoAccount[] = [
+  {
+    role: "ADMIN",
+    label: "Admin",
+    email: process.env.NEXT_PUBLIC_DEMO_ADMIN_EMAIL,
+    password: process.env.NEXT_PUBLIC_DEMO_ADMIN_PASSWORD,
+  },
+  {
+    role: "OPERATOR",
+    label: "Operator",
+    email: process.env.NEXT_PUBLIC_DEMO_OPERATOR_EMAIL,
+    password: process.env.NEXT_PUBLIC_DEMO_OPERATOR_PASSWORD,
+  },
+  {
+    role: "CUSTOMER",
+    label: "Customer",
+    email: process.env.NEXT_PUBLIC_DEMO_CUSTOMER_EMAIL,
+    password: process.env.NEXT_PUBLIC_DEMO_CUSTOMER_PASSWORD,
+  },
+];
+
+const demoIcons = {
+  ADMIN: ShieldCheck,
+  OPERATOR: Wrench,
+  CUSTOMER: UserRound,
+};
+
 export default function LoginForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
   const [serverError, setServerError] = useState("");
+  const [activeDemoRole, setActiveDemoRole] = useState<UserRole | null>(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  const authenticate = async (
+    credentials: LoginCredentials,
+    expectedRole?: UserRole,
+  ) => {
+    if (isAuthenticating) return;
+
+    setIsAuthenticating(true);
+    setServerError("");
+
+    try {
+      await authService.login(credentials);
+
+      const response = await authService.getMe();
+      const user = response.data;
+
+      if (expectedRole && user.role !== expectedRole) {
+        throw new Error(
+          `This demo account does not have the ${expectedRole} role.`,
+        );
+      }
+
+      queryClient.clear();
+      queryClient.setQueryData(["auth", "me"], user);
+
+      toast.success(`Welcome back, ${user.name}!`);
+
+      router.replace(dashboardRoutes[user.role]);
+      router.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Login failed";
+
+      setServerError(message);
+      toast.error(message);
+    } finally {
+      setIsAuthenticating(false);
+      setActiveDemoRole(null);
+    }
+  };
 
   const form = useForm({
     defaultValues: {
@@ -46,37 +127,29 @@ export default function LoginForm() {
     validators: {
       onBlur: loginSchema,
     },
-
     onSubmit: async ({ value }) => {
-      setServerError("");
-
-      try {
-        // 1. Authenticate
-        await authService.login(value);
-
-        // 2. Fetch authenticated user
-        const response = await authService.getMe();
-        const user = response.data;
-
-        // 3. Clear cached data from any previous session
-        queryClient.clear();
-
-        // 4. Cache the newly authenticated user
-        queryClient.setQueryData(["auth", "me"], user);
-
-        // 5. Redirect based on role
-        toast.success(`Welcome back, ${user.name}!`);
-
-        router.replace(dashboardRoutes[user.role]);
-        router.refresh();
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Login failed";
-
-        setServerError(message);
-        toast.error(message);
-      }
+      await authenticate(value);
     },
   });
+
+  const handleDemoLogin = async (account: DemoAccount) => {
+    if (isAuthenticating) return;
+
+    if (!account.email || !account.password) {
+      toast.error(`${account.label} demo credentials are not configured.`);
+      return;
+    }
+
+    setActiveDemoRole(account.role);
+
+    await authenticate(
+      {
+        email: account.email,
+        password: account.password,
+      },
+      account.role,
+    );
+  };
 
   return (
     <Card className="w-full max-w-md">
@@ -85,7 +158,7 @@ export default function LoginForm() {
         <CardDescription>Sign in to your GridGuard account</CardDescription>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="space-y-6">
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -106,6 +179,7 @@ export default function LoginForm() {
                   placeholder="you@example.com"
                   autoComplete="email"
                   value={field.state.value}
+                  disabled={isAuthenticating}
                   onBlur={field.handleBlur}
                   onChange={(event) => field.handleChange(event.target.value)}
                 />
@@ -146,6 +220,7 @@ export default function LoginForm() {
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   value={field.state.value}
+                  disabled={isAuthenticating}
                   onBlur={field.handleBlur}
                   onChange={(event) => field.handleChange(event.target.value)}
                 />
@@ -178,15 +253,68 @@ export default function LoginForm() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={!canSubmit || isSubmitting}
+                disabled={!canSubmit || isSubmitting || isAuthenticating}
               >
-                {isSubmitting ? "Signing in..." : "Sign In"}
+                {isSubmitting || (isAuthenticating && !activeDemoRole)
+                  ? "Signing in..."
+                  : "Sign In"}
               </Button>
             )}
           </form.Subscribe>
         </form>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-3 text-muted-foreground">
+              Or continue with
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="space-y-1 text-center">
+            <h3 className="text-sm font-semibold">Quick Demo Login</h3>
+            <p className="text-xs text-muted-foreground">
+              Explore GridGuard using a demo account
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {demoAccounts.map((account) => {
+              const Icon = demoIcons[account.role];
+              const isLoading = activeDemoRole === account.role;
+
+              return (
+                <Button
+                  key={account.role}
+                  type="button"
+                  variant="outline"
+                  className="h-auto min-h-24 flex-col gap-2 px-2 py-3"
+                  disabled={isAuthenticating}
+                  onClick={() => {
+                    void handleDemoLogin(account);
+                  }}
+                >
+                  {isLoading ? (
+                    <Loader2 className="size-5 animate-spin" />
+                  ) : (
+                    <Icon className="size-5" />
+                  )}
+
+                  <span className="text-xs font-medium">
+                    {isLoading ? "Signing in..." : account.label}
+                  </span>
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+
+        <p className="text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
           <Link
             href="/register"
