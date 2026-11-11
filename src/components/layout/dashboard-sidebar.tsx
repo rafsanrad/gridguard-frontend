@@ -70,6 +70,11 @@ const sidebarLinks = {
       href: "/operator/requests",
       icon: ClipboardList,
     },
+    {
+      label: "Customer Reports",
+      href: "/operator/outage-reports",
+      icon: ClipboardList,
+    },
   ],
 
   CUSTOMER: [
