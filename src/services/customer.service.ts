@@ -23,6 +23,17 @@ export interface CustomerOutageReport {
   outageId: string | null;
   createdAt: string;
   updatedAt: string;
+
+  outage?: {
+    id: string;
+    title: string;
+    type: "PLANNED" | "UNPLANNED";
+    status: string;
+    startedAt: string;
+    estimatedRestoredAt: string | null;
+    restoredAt: string | null;
+    cause: string | null;
+  } | null;
 }
 
 export interface CreateOutageReportPayload {
