@@ -22,26 +22,77 @@ import type { UserRole } from "@/services/auth.service";
 
 const sidebarLinks = {
   ADMIN: [
-    { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-    { label: "Users", href: "/admin/users", icon: Users },
-    { label: "Zones", href: "/admin/zones", icon: MapPin },
-    { label: "Settings", href: "/admin/settings", icon: Settings },
+    {
+      label: "Dashboard",
+      href: "/admin/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      label: "Users",
+      href: "/admin/users",
+      icon: Users,
+    },
+    {
+      label: "Zones",
+      href: "/admin/zones",
+      icon: MapPin,
+    },
+    {
+      label: "Load Shedding",
+      href: "/admin/load-shedding",
+      icon: CalendarDays,
+    },
+    {
+      label: "Settings",
+      href: "/admin/settings",
+      icon: Settings,
+    },
   ],
+
   OPERATOR: [
-    { label: "Dashboard", href: "/operator/dashboard", icon: LayoutDashboard },
-    { label: "Outages", href: "/operator/outages", icon: Activity },
-    { label: "Schedules", href: "/operator/schedules", icon: CalendarDays },
+    {
+      label: "Dashboard",
+      href: "/operator/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      label: "Outages",
+      href: "/operator/outages",
+      icon: Activity,
+    },
+    {
+      label: "Load Shedding",
+      href: "/operator/schedules",
+      icon: CalendarDays,
+    },
     {
       label: "Service Requests",
       href: "/operator/requests",
       icon: ClipboardList,
     },
   ],
+
   CUSTOMER: [
-    { label: "Dashboard", href: "/customer/dashboard", icon: LayoutDashboard },
-    { label: "Report Outage", href: "/customer/report-outage", icon: Zap },
-    { label: "My Requests", href: "/customer/requests", icon: ClipboardList },
-    { label: "My Area", href: "/customer/my-area", icon: House },
+    {
+      label: "Dashboard",
+      href: "/customer/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      label: "Report Outage",
+      href: "/customer/report-outage",
+      icon: Zap,
+    },
+    {
+      label: "My Requests",
+      href: "/customer/requests",
+      icon: ClipboardList,
+    },
+    {
+      label: "My Area",
+      href: "/customer/my-area",
+      icon: House,
+    },
     {
       label: "Payments",
       href: "/customer/payments",
@@ -71,6 +122,7 @@ export default function DashboardSidebar({
     <aside className="flex h-full flex-col border-r bg-card">
       <div className="flex h-16 items-center gap-2 border-b px-6">
         <ShieldCheck className="size-6 text-primary" />
+
         <span className="text-xl font-bold">
           Grid<span className="text-primary">Guard</span>
         </span>
@@ -79,6 +131,7 @@ export default function DashboardSidebar({
       <nav className="flex-1 space-y-1 p-4">
         {links.map((link) => {
           const Icon = link.icon;
+
           const isActive =
             pathname === link.href ||
             (link.href !== `/${role.toLowerCase()}/dashboard` &&
@@ -106,6 +159,7 @@ export default function DashboardSidebar({
       <div className="border-t p-4">
         <Link
           href="/"
+          onClick={onNavigate}
           className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
         >
           <House className="size-5" />

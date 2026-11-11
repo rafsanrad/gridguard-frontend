@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { z } from "zod";
 import { toast } from "sonner";
+
 import {
   ClipboardList,
   Loader2,
@@ -23,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+
 import {
   Card,
   CardContent,
@@ -30,9 +32,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { ServiceRequestPayment } from "@/components/dashboard/service-request-payment";
 
+// Validation schema
 const requestSchema = z.object({
   title: z
     .string()
@@ -41,9 +45,10 @@ const requestSchema = z.object({
 
   description: z.string().max(500, "Description cannot exceed 500 characters"),
 
-  amount: z.number().positive("Amount must be greater than 0"),
+  amount: z.number().min(100, "Minimum service amount is ৳100"),
 });
 
+// Status badge styling
 function getStatusClassName(status: string) {
   switch (status) {
     case "PENDING":
@@ -67,6 +72,7 @@ function getStatusClassName(status: string) {
   }
 }
 
+// Format date
 function formatDate(date: string) {
   return new Intl.DateTimeFormat("en-BD", {
     timeZone: "Asia/Dhaka",
@@ -75,6 +81,7 @@ function formatDate(date: string) {
   }).format(new Date(date));
 }
 
+// Format BDT amount
 function formatAmount(amount: string) {
   const value = Number(amount);
 
@@ -89,6 +96,10 @@ export default function MyRequestsPage() {
   const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
 
+  // Separate state for manual Refresh button
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+
+  // Fetch service requests
   const requestsQuery = useMyServiceRequests({
     page,
     limit: 5,
@@ -96,8 +107,49 @@ export default function MyRequestsPage() {
     sortOrder: "desc",
   });
 
+  // Create service request mutation
   const createMutation = useCreateServiceRequest();
 
+  // Automatically refresh pending requests every 3 seconds.
+  // This does not trigger the manual Refresh icon animation.
+  const hasPendingRequests =
+    requestsQuery.data?.data?.some((request) => request.status === "PENDING") ??
+    false;
+
+  const refetchRequests = requestsQuery.refetch;
+
+  useEffect(() => {
+    if (!hasPendingRequests) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      void refetchRequests();
+    }, 3000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [hasPendingRequests, refetchRequests]);
+
+  // Manual refresh
+  const handleManualRefresh = async () => {
+    if (isManualRefreshing) {
+      return;
+    }
+
+    setIsManualRefreshing(true);
+
+    try {
+      await requestsQuery.refetch();
+    } catch {
+      toast.error("Failed to refresh service requests.");
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  };
+
+  // Request form
   const form = useForm({
     defaultValues: {
       title: "",
@@ -117,6 +169,7 @@ export default function MyRequestsPage() {
           parsed.error.issues[0]?.message ??
             "Please check your request details.",
         );
+
         return;
       }
 
@@ -147,10 +200,12 @@ export default function MyRequestsPage() {
 
   return (
     <section className="space-y-6">
+      {/* Page heading */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
             <ClipboardList className="size-8 text-primary" />
+
             <h1 className="text-3xl font-bold">My Requests</h1>
           </div>
 
@@ -165,10 +220,12 @@ export default function MyRequestsPage() {
         </Button>
       </div>
 
+      {/* Create request form */}
       {showForm && (
         <Card>
           <CardHeader>
             <CardTitle>Create Service Request</CardTitle>
+
             <CardDescription>
               Provide the details of the electricity service you need.
             </CardDescription>
@@ -183,6 +240,7 @@ export default function MyRequestsPage() {
                 void form.handleSubmit();
               }}
             >
+              {/* Title */}
               <form.Field name="title">
                 {(field) => (
                   <div className="space-y-2">
@@ -204,6 +262,7 @@ export default function MyRequestsPage() {
                 )}
               </form.Field>
 
+              {/* Description */}
               <form.Field name="description">
                 {(field) => (
                   <div className="space-y-2">
@@ -225,6 +284,7 @@ export default function MyRequestsPage() {
                 )}
               </form.Field>
 
+              {/* Amount */}
               <form.Field name="amount">
                 {(field) => (
                   <div className="space-y-2">
@@ -234,7 +294,7 @@ export default function MyRequestsPage() {
                       id={field.name}
                       name={field.name}
                       type="number"
-                      min="0.01"
+                      min="100"
                       step="0.01"
                       placeholder="e.g. 500"
                       value={field.state.value}
@@ -246,12 +306,13 @@ export default function MyRequestsPage() {
                     />
 
                     <p className="text-xs text-muted-foreground">
-                      Enter the service amount in Bangladeshi Taka.
+                      Minimum service amount is ৳100.
                     </p>
                   </div>
                 )}
               </form.Field>
 
+              {/* Form buttons */}
               <div className="flex justify-end gap-3">
                 <Button
                   type="button"
@@ -280,26 +341,27 @@ export default function MyRequestsPage() {
         </Card>
       )}
 
+      {/* Service request history */}
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="space-y-1">
               <CardTitle>Service Request History</CardTitle>
+
               <CardDescription>
                 View the status of your submitted requests.
               </CardDescription>
             </div>
 
+            {/* Manual Refresh button */}
             <Button
               variant="outline"
               size="sm"
-              disabled={requestsQuery.isFetching}
-              onClick={() => void requestsQuery.refetch()}
+              disabled={isManualRefreshing}
+              onClick={() => void handleManualRefresh()}
             >
               <RefreshCw
-                className={`size-4 ${
-                  requestsQuery.isFetching ? "animate-spin" : ""
-                }`}
+                className={`size-4 ${isManualRefreshing ? "animate-spin" : ""}`}
               />
               Refresh
             </Button>
@@ -307,6 +369,7 @@ export default function MyRequestsPage() {
         </CardHeader>
 
         <CardContent className="space-y-4">
+          {/* Loading */}
           {requestsQuery.isPending ? (
             <div className="space-y-3">
               {[1, 2, 3].map((item) => (
@@ -314,6 +377,7 @@ export default function MyRequestsPage() {
               ))}
             </div>
           ) : requestsQuery.isError ? (
+            /* Error */
             <div className="flex min-h-40 flex-col items-center justify-center gap-3">
               <p className="text-sm text-destructive">
                 Failed to load service requests.
@@ -328,12 +392,14 @@ export default function MyRequestsPage() {
               </Button>
             </div>
           ) : requests.length > 0 ? (
+            /* Request list */
             <div className="space-y-3">
               {requests.map((request) => (
                 <div
                   key={request.id}
                   className="space-y-3 rounded-lg border p-4"
                 >
+                  {/* Request title and status */}
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
                       <h3 className="font-semibold">{request.title}</h3>
@@ -351,12 +417,14 @@ export default function MyRequestsPage() {
                     </Badge>
                   </div>
 
+                  {/* Description */}
                   {request.description && (
                     <p className="text-sm text-muted-foreground">
                       {request.description}
                     </p>
                   )}
 
+                  {/* Amount */}
                   <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
                     <span className="text-muted-foreground">
                       Service Amount
@@ -367,12 +435,14 @@ export default function MyRequestsPage() {
                     </span>
                   </div>
 
+                  {/* Completed date */}
                   {request.completedAt && (
                     <p className="text-xs text-muted-foreground">
                       Completed {formatDate(request.completedAt)}
                     </p>
                   )}
 
+                  {/* Stripe payment */}
                   <ServiceRequestPayment
                     serviceRequestId={request.id}
                     status={request.status}
@@ -381,6 +451,7 @@ export default function MyRequestsPage() {
               ))}
             </div>
           ) : (
+            /* Empty state */
             <div className="flex min-h-40 flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-center">
               <ClipboardList className="size-9 text-muted-foreground" />
 
@@ -392,6 +463,7 @@ export default function MyRequestsPage() {
             </div>
           )}
 
+          {/* Pagination */}
           {meta && meta.totalPages > 1 && (
             <div className="flex items-center justify-between border-t pt-4">
               <p className="text-sm text-muted-foreground">

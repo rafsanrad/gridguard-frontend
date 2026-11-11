@@ -65,19 +65,6 @@ export function ServiceRequestPayment({
 
   return (
     <div className="flex flex-wrap gap-2 border-t pt-3">
-      <Button
-        type="button"
-        size="sm"
-        disabled={isProcessing}
-        onClick={() => void handlePayment("BKASH")}
-      >
-        {activeProvider === "BKASH" && isProcessing ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <Wallet className="size-4" />
-        )}
-        Pay with bKash
-      </Button>
 
       <Button
         type="button"

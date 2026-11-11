@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import {
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   House,
   MapPin,
@@ -27,6 +29,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 type DisplayStatus = "UPCOMING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+
+type ScheduleFilter = "ALL" | "UPCOMING" | "IN_PROGRESS" | "HISTORY";
+
+const PAGE_SIZE = 10;
 
 function getDisplayStatus(
   schedule: LoadSheddingSchedule,
@@ -135,10 +141,13 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
 }
 
 export default function MyAreaPage() {
-  // Current time is initialized after mounting,
-  // avoiding Date.now() during React rendering.
+  const [page, setPage] = useState(1);
+
+  const [filter, setFilter] = useState<ScheduleFilter>("ALL");
+
   const [now, setNow] = useState<number | null>(null);
 
+  // Update current time every minute
   useEffect(() => {
     const updateTime = () => {
       setNow(Date.now());
@@ -154,6 +163,7 @@ export default function MyAreaPage() {
     };
   }, []);
 
+  // Current user
   const {
     data: user,
     isPending: userPending,
@@ -163,23 +173,25 @@ export default function MyAreaPage() {
 
   const areaId = user?.areaId;
 
+  // Customer's area
   const areaQuery = useAreaDetails(areaId);
+
   const area = areaQuery.data?.data;
 
+  // Load shedding schedules for assigned feeder
   const schedulesQuery = useAreaSchedules(
     area?.feederId
       ? {
           feederId: area.feederId,
-          page: 1,
-          limit: 50,
+          page,
+          limit: PAGE_SIZE,
           sortBy: "startDateTime",
           sortOrder: "asc",
         }
       : undefined,
   );
 
-  // Build schedule statuses only after the current
-  // time has been initialized on the client.
+  // Schedule statuses and sorting
   const schedules =
     now === null
       ? []
@@ -211,6 +223,28 @@ export default function MyAreaPage() {
             return aStart - bStart;
           });
 
+  // Filter schedules
+  const filteredSchedules = schedules.filter((schedule) => {
+    if (filter === "ALL") {
+      return true;
+    }
+
+    if (filter === "HISTORY") {
+      return (
+        schedule.displayStatus === "COMPLETED" ||
+        schedule.displayStatus === "CANCELLED"
+      );
+    }
+
+    return schedule.displayStatus === filter;
+  });
+
+  // Pagination
+  const totalPages = schedulesQuery.data?.meta?.totalPages ?? 1;
+
+  const totalSchedules = schedulesQuery.data?.meta?.total ?? 0;
+
+  // Counts on current page
   const upcomingCount = schedules.filter(
     (schedule) => schedule.displayStatus === "UPCOMING",
   ).length;
@@ -230,7 +264,7 @@ export default function MyAreaPage() {
     );
   }
 
-  // Current user error
+  // User API error
   if (userError) {
     return (
       <section className="space-y-6">
@@ -315,7 +349,7 @@ export default function MyAreaPage() {
         </p>
       </div>
 
-      {/* Area and electricity network */}
+      {/* Area and network */}
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader>
@@ -331,8 +365,11 @@ export default function MyAreaPage() {
 
           <CardContent className="space-y-3">
             <InfoRow label="Area Name" value={area.name} />
+
             <InfoRow label="Area Code" value={area.code} />
+
             <InfoRow label="Address" value={area.address} />
+
             <InfoRow label="Description" value={area.description} />
           </CardContent>
         </Card>
@@ -351,9 +388,13 @@ export default function MyAreaPage() {
 
           <CardContent className="space-y-3">
             <InfoRow label="Feeder" value={feeder.name} />
+
             <InfoRow label="Feeder Code" value={feeder.code} />
+
             <InfoRow label="Substation" value={substation.name} />
+
             <InfoRow label="Zone" value={zone.name} />
+
             <InfoRow label="Zone Code" value={zone.code} />
           </CardContent>
         </Card>
@@ -391,7 +432,7 @@ export default function MyAreaPage() {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* Schedule summary */}
+          {/* Summary */}
           {!schedulesQuery.isPending &&
             !schedulesQuery.isError &&
             now !== null && (
@@ -404,7 +445,30 @@ export default function MyAreaPage() {
               </div>
             )}
 
-          {/* Schedule loading */}
+          {/* Filters */}
+          <div className="flex flex-wrap gap-2" aria-label="Filter schedules">
+            {(["ALL", "UPCOMING", "IN_PROGRESS", "HISTORY"] as const).map(
+              (option) => (
+                <Button
+                  key={option}
+                  type="button"
+                  size="sm"
+                  variant={filter === option ? "default" : "outline"}
+                  onClick={() => setFilter(option)}
+                >
+                  {option === "ALL"
+                    ? "All"
+                    : option === "IN_PROGRESS"
+                      ? "In Progress"
+                      : option === "HISTORY"
+                        ? "History"
+                        : "Upcoming"}
+                </Button>
+              ),
+            )}
+          </div>
+
+          {/* Loading */}
           {schedulesQuery.isPending || now === null ? (
             <div className="space-y-3">
               {[1, 2, 3].map((item) => (
@@ -425,9 +489,9 @@ export default function MyAreaPage() {
                 Try Again
               </Button>
             </div>
-          ) : schedules.length > 0 ? (
+          ) : filteredSchedules.length > 0 ? (
             <div className="space-y-3">
-              {schedules.map((schedule) => (
+              {filteredSchedules.map((schedule) => (
                 <div
                   key={schedule.id}
                   className="space-y-3 rounded-lg border p-4"
@@ -480,16 +544,42 @@ export default function MyAreaPage() {
           ) : (
             <div className="flex min-h-40 items-center justify-center rounded-lg border border-dashed">
               <p className="text-sm text-muted-foreground">
-                No load shedding schedules found for your area.
+                {filter === "ALL"
+                  ? "No load shedding schedules found for your area."
+                  : "No matching schedules on this page."}
               </p>
             </div>
           )}
 
-          {(schedulesQuery.data?.meta?.totalPages ?? 0) > 1 && (
-            <p className="text-center text-xs text-muted-foreground">
-              Showing the first {schedules.length} of{" "}
-              {schedulesQuery.data?.meta.total} schedules.
-            </p>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+              <p className="text-sm text-muted-foreground">
+                Page {page} of {totalPages} · {totalSchedules} total schedules
+              </p>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1 || schedulesQuery.isFetching}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                >
+                  <ChevronLeft className="size-4" />
+                  Previous
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages || schedulesQuery.isFetching}
+                  onClick={() => setPage((current) => current + 1)}
+                >
+                  Next
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
