@@ -52,6 +52,11 @@ const sidebarLinks = {
       href: "/admin/service-requests",
       icon: ClipboardList,
     },
+    {
+      label: "Notifications",
+      href: "/admin/notifications",
+      icon: Bell,
+    },
   ],
 
   OPERATOR: [
@@ -79,6 +84,11 @@ const sidebarLinks = {
       label: "Customer Reports",
       href: "/operator/outage-reports",
       icon: ClipboardList,
+    },
+    {
+      label: "Notifications",
+      href: "/operator/notifications",
+      icon: Bell,
     },
   ],
 
