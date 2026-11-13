@@ -7,15 +7,17 @@ import {
   CheckCircle2,
   ClipboardList,
   CreditCard,
-  Loader2,
   RefreshCw,
   Wallet,
   Zap,
   type LucideIcon,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
+
 import { useDashboardAnalytics } from "@/hooks/use-analytics";
 import type { StatusCount } from "@/types/analytics";
+import DashboardAnalyticsSkeleton from "./dashboard-analytics-skeleton";
 
 interface StatCardProps {
   title: string;
@@ -30,6 +32,7 @@ function StatCard({ title, value, description, icon: Icon }: StatCardProps) {
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-2">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
+
           <p className="text-2xl font-bold tracking-tight">{value}</p>
         </div>
 
@@ -58,11 +61,13 @@ function formatStatus(status: string) {
 
 function StatusChart({ title, description, data }: StatusChartProps) {
   const total = data.reduce((sum, item) => sum + item.count, 0);
+
   const max = Math.max(...data.map((item) => item.count), 1);
 
   return (
     <div className="rounded-xl border bg-card p-5 shadow-sm">
       <h2 className="text-lg font-semibold">{title}</h2>
+
       <p className="mt-1 text-sm text-muted-foreground">{description}</p>
 
       {data.length === 0 ? (
@@ -82,6 +87,7 @@ function StatusChart({ title, description, data }: StatusChartProps) {
                   <span className="font-medium">
                     {formatStatus(item.status)}
                   </span>
+
                   <span className="text-muted-foreground">
                     {item.count} ({percentage}%)
                   </span>
@@ -116,25 +122,21 @@ export default function DashboardAnalytics() {
   const { data, isPending, isError, error, isFetching, refetch } =
     useDashboardAnalytics();
 
+  // Show skeleton while the initial API request is loading.
   if (isPending) {
-    return (
-      <div className="flex min-h-64 items-center justify-center gap-3">
-        <Loader2 className="size-5 animate-spin text-primary" />
-        <span className="text-sm text-muted-foreground">
-          Loading dashboard analytics...
-        </span>
-      </div>
-    );
+    return <DashboardAnalyticsSkeleton />;
   }
 
+  // Preserve existing error handling.
   if (isError) {
     return (
-      <div className="space-y-4 rounded-xl border p-8 text-center">
+      <div role="alert" className="space-y-4 rounded-xl border p-8 text-center">
         <p className="text-sm text-destructive">
           {error instanceof Error
             ? error.message
             : "Failed to load dashboard analytics."}
         </p>
+
         <Button variant="outline" onClick={() => void refetch()}>
           Try Again
         </Button>
@@ -200,7 +202,9 @@ export default function DashboardAnalytics() {
     {
       title: "Successful Payments",
       value: numberFormatter.format(summary.successfulPayments),
-      description: `Out of ${numberFormatter.format(summary.totalPayments)} payments`,
+      description: `Out of ${numberFormatter.format(
+        summary.totalPayments,
+      )} payments`,
       icon: CreditCard,
     },
     {
@@ -216,6 +220,7 @@ export default function DashboardAnalytics() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold">System Overview</h2>
+
           <p className="mt-1 text-sm text-muted-foreground">
             Monitor GridGuard operations and performance.
           </p>
