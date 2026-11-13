@@ -43,11 +43,6 @@ const sidebarLinks = {
       icon: CalendarDays,
     },
     {
-      label: "Settings",
-      href: "/admin/settings",
-      icon: Settings,
-    },
-    {
       label: "Service Requests",
       href: "/admin/service-requests",
       icon: ClipboardList,
