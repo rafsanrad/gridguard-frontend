@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "@tanstack/react-form";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -147,14 +148,104 @@ function StatusBadge({ status }: { status: OutageStatus }) {
   );
 }
 
-export default function OperatorOutagesPage() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+function OperatorOutagesContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const search = searchParams.get("search") ?? "";
+  const rawPage = Number(searchParams.get("page") ?? "1");
+
+  const page = Number.isSafeInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+
+  const [searchInput, setSearchInput] = useState(search);
+  const [previousSearch, setPreviousSearch] = useState(search);
+
+  if (search !== previousSearch) {
+    setPreviousSearch(search);
+    setSearchInput(search);
+  }
+
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const searchParamsRef = useRef(searchParams.toString());
+
+  useEffect(() => {
+    searchParamsRef.current = searchParams.toString();
+  }, [searchParams]);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimer.current) {
+        clearTimeout(searchTimer.current);
+      }
+    };
+  }, []);
+
+  function updateQueryParams(
+    updates: Record<string, string | null>,
+    method: "push" | "replace" = "push",
+  ) {
+    const params = new URLSearchParams(searchParamsRef.current);
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    }
+
+    const query = params.toString();
+    const url = query ? `${pathname}?${query}` : pathname;
+
+    searchParamsRef.current = query;
+
+    if (method === "replace") {
+      router.replace(url, { scroll: false });
+    } else {
+      router.push(url, { scroll: false });
+    }
+  }
+
+  function handleSearchChange(value: string) {
+    setSearchInput(value);
+
+    if (searchTimer.current) {
+      clearTimeout(searchTimer.current);
+    }
+
+    searchTimer.current = setTimeout(() => {
+      updateQueryParams(
+        {
+          search: value.trim() || null,
+          page: null,
+        },
+        "replace",
+      );
+
+      searchTimer.current = null;
+    }, 350);
+  }
+
+  function updatePage(nextPage: number) {
+    if (searchTimer.current) {
+      clearTimeout(searchTimer.current);
+      searchTimer.current = null;
+    }
+
+    updateQueryParams({
+      search: searchInput.trim() || null,
+      page: nextPage > 1 ? String(nextPage) : null,
+    });
+  }
+
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Outage | null>(null);
   const [feederSearch, setFeederSearch] = useState("");
 
   const [statusOutage, setStatusOutage] = useState<Outage | null>(null);
+
   const [statusNotes, setStatusNotes] = useState("");
 
   const outagesQuery = useOutages({
@@ -226,7 +317,7 @@ export default function OperatorOutagesPage() {
         setShowForm(false);
         setEditing(null);
         form.reset();
-        setPage(1);
+        updatePage(1);
       } catch (error) {
         toast.error(
           error instanceof Error ? error.message : "Failed to save outage.",
@@ -271,6 +362,7 @@ export default function OperatorOutagesPage() {
     if (!statusOutage) return;
 
     const nextStatus = NEXT_OUTAGE_STATUS[statusOutage.status];
+
     if (!nextStatus) return;
 
     try {
@@ -283,6 +375,7 @@ export default function OperatorOutagesPage() {
       });
 
       toast.success(`Outage status updated to ${nextStatus}.`);
+
       setStatusOutage(null);
       setStatusNotes("");
     } catch (error) {
@@ -293,7 +386,9 @@ export default function OperatorOutagesPage() {
   }
 
   async function handleDelete(outage: Outage) {
-    if (!window.confirm(`Delete "${outage.title}"?`)) return;
+    if (!window.confirm(`Delete "${outage.title}"?`)) {
+      return;
+    }
 
     try {
       await deleteMutation.mutateAsync(outage.id);
@@ -340,6 +435,7 @@ export default function OperatorOutagesPage() {
         <Card>
           <CardHeader>
             <CardTitle>{editing ? "Edit Outage" : "Create Outage"}</CardTitle>
+
             <CardDescription>
               Enter the outage information. All times use Bangladesh Standard
               Time (UTC+6).
@@ -359,6 +455,7 @@ export default function OperatorOutagesPage() {
                 {(field) => (
                   <div className="space-y-2">
                     <Label htmlFor="outage-title">Title</Label>
+
                     <Input
                       id="outage-title"
                       value={field.state.value}
@@ -376,6 +473,7 @@ export default function OperatorOutagesPage() {
                 {(field) => (
                   <div className="space-y-2">
                     <Label htmlFor="outage-description">Description</Label>
+
                     <Textarea
                       id="outage-description"
                       value={field.state.value}
@@ -393,6 +491,7 @@ export default function OperatorOutagesPage() {
                   {(field) => (
                     <div className="space-y-2">
                       <Label htmlFor="outage-type">Type</Label>
+
                       <select
                         id="outage-type"
                         className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
@@ -459,6 +558,7 @@ export default function OperatorOutagesPage() {
                   {(field) => (
                     <div className="space-y-2">
                       <Label htmlFor="outage-start">Start Time</Label>
+
                       <Input
                         id="outage-start"
                         type="datetime-local"
@@ -479,6 +579,7 @@ export default function OperatorOutagesPage() {
                       <Label htmlFor="outage-estimated">
                         Estimated Restoration
                       </Label>
+
                       <Input
                         id="outage-estimated"
                         type="datetime-local"
@@ -495,6 +596,7 @@ export default function OperatorOutagesPage() {
                   {(field) => (
                     <div className="space-y-2">
                       <Label htmlFor="outage-cause">Cause</Label>
+
                       <Input
                         id="outage-cause"
                         value={field.state.value}
@@ -514,6 +616,7 @@ export default function OperatorOutagesPage() {
                       <Label htmlFor="outage-customers">
                         Affected Customers
                       </Label>
+
                       <Input
                         id="outage-customers"
                         type="number"
@@ -556,6 +659,7 @@ export default function OperatorOutagesPage() {
         <Card>
           <CardHeader>
             <CardTitle>Update Outage Status</CardTitle>
+
             <CardDescription>
               {statusOutage.title}: {statusOutage.status} →{" "}
               {NEXT_OUTAGE_STATUS[statusOutage.status]}
@@ -634,11 +738,8 @@ export default function OperatorOutagesPage() {
             <Input
               className="pl-9"
               placeholder="Search outages..."
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
+              value={searchInput}
+              onChange={(event) => handleSearchChange(event.target.value)}
             />
           </div>
 
@@ -787,7 +888,7 @@ export default function OperatorOutagesPage() {
                   variant="outline"
                   size="sm"
                   disabled={page <= 1 || outagesQuery.isFetching}
-                  onClick={() => setPage((current) => current - 1)}
+                  onClick={() => updatePage(page - 1)}
                 >
                   <ChevronLeft className="size-4" />
                   Previous
@@ -797,7 +898,7 @@ export default function OperatorOutagesPage() {
                   variant="outline"
                   size="sm"
                   disabled={page >= meta.totalPages || outagesQuery.isFetching}
-                  onClick={() => setPage((current) => current + 1)}
+                  onClick={() => updatePage(page + 1)}
                 >
                   Next
                   <ChevronRight className="size-4" />
@@ -810,4 +911,19 @@ export default function OperatorOutagesPage() {
     </section>
   );
 }
-z
+
+export default function OperatorOutagesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-3 p-4" aria-label="Loading outages">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" />
+        </div>
+      }
+    >
+      <OperatorOutagesContent />
+    </Suspense>
+  );
+}

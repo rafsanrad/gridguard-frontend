@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
   ChevronLeft,
@@ -32,6 +33,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
 import {
   useOutageReportDetails,
   useOutageReports,
@@ -116,6 +118,7 @@ function ReportDetails({
 
         <div className="space-y-2">
           <h3 className="font-semibold">Description</h3>
+
           <p className="whitespace-pre-wrap text-sm text-muted-foreground">
             {report.description || "No description provided."}
           </p>
@@ -166,10 +169,104 @@ function ReportDetails({
   );
 }
 
-export default function OperatorOutageReportsPage() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+function OperatorOutageReportsContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const search = searchParams.get("search") ?? "";
+
+  const rawPage = Number(searchParams.get("page") ?? "1");
+
+  const page = Number.isSafeInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+
+  const [searchInput, setSearchInput] = useState(search);
+
+  const [previousSearch, setPreviousSearch] = useState(search);
+
+  if (search !== previousSearch) {
+    setPreviousSearch(search);
+    setSearchInput(search);
+  }
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const searchParamsRef = useRef(searchParams.toString());
+
+  useEffect(() => {
+    searchParamsRef.current = searchParams.toString();
+  }, [searchParams]);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimer.current) {
+        clearTimeout(searchTimer.current);
+      }
+    };
+  }, []);
+
+  function updateQueryParams(
+    updates: Record<string, string | null>,
+    method: "push" | "replace" = "push",
+  ) {
+    const params = new URLSearchParams(searchParamsRef.current);
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    }
+
+    const query = params.toString();
+    const url = query ? `${pathname}?${query}` : pathname;
+
+    searchParamsRef.current = query;
+
+    if (method === "replace") {
+      router.replace(url, { scroll: false });
+    } else {
+      router.push(url, { scroll: false });
+    }
+  }
+
+  function handleSearchChange(value: string) {
+    setSearchInput(value);
+    setSelectedId(null);
+
+    if (searchTimer.current) {
+      clearTimeout(searchTimer.current);
+    }
+
+    searchTimer.current = setTimeout(() => {
+      updateQueryParams(
+        {
+          search: value.trim() || null,
+          page: null,
+        },
+        "replace",
+      );
+
+      searchTimer.current = null;
+    }, 350);
+  }
+
+  function updatePage(nextPage: number) {
+    if (searchTimer.current) {
+      clearTimeout(searchTimer.current);
+      searchTimer.current = null;
+    }
+
+    setSelectedId(null);
+
+    updateQueryParams({
+      search: searchInput.trim() || null,
+      page: nextPage > 1 ? String(nextPage) : null,
+    });
+  }
 
   const reportsQuery = useOutageReports({
     page,
@@ -264,12 +361,8 @@ export default function OperatorOutageReportsPage() {
             <Input
               className="pl-9"
               placeholder="Search description or location..."
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-                setSelectedId(null);
-              }}
+              value={searchInput}
+              onChange={(event) => handleSearchChange(event.target.value)}
             />
           </div>
 
@@ -358,10 +451,7 @@ export default function OperatorOutageReportsPage() {
                   variant="outline"
                   size="sm"
                   disabled={page <= 1 || reportsQuery.isFetching}
-                  onClick={() => {
-                    setPage((current) => current - 1);
-                    setSelectedId(null);
-                  }}
+                  onClick={() => updatePage(page - 1)}
                 >
                   <ChevronLeft className="size-4" />
                   Previous
@@ -371,10 +461,7 @@ export default function OperatorOutageReportsPage() {
                   variant="outline"
                   size="sm"
                   disabled={page >= meta.totalPages || reportsQuery.isFetching}
-                  onClick={() => {
-                    setPage((current) => current + 1);
-                    setSelectedId(null);
-                  }}
+                  onClick={() => updatePage(page + 1)}
                 >
                   Next
                   <ChevronRight className="size-4" />
@@ -385,5 +472,22 @@ export default function OperatorOutageReportsPage() {
         </CardContent>
       </Card>
     </section>
+  );
+}
+
+export default function OperatorOutageReportsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-72" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-36 w-full" />
+        </div>
+      }
+    >
+      <OperatorOutageReportsContent />
+    </Suspense>
   );
 }
