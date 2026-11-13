@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "@tanstack/react-form";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -24,6 +25,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ServiceRequestPayment } from "@/components/dashboard/service-request-payment";
 
 import {
   Card,
@@ -33,10 +36,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-import { Skeleton } from "@/components/ui/skeleton";
-import { ServiceRequestPayment } from "@/components/dashboard/service-request-payment";
+const PAGE_SIZE = 5;
 
-// Validation schema
 const requestSchema = z.object({
   title: z
     .string()
@@ -45,10 +46,9 @@ const requestSchema = z.object({
 
   description: z.string().max(500, "Description cannot exceed 500 characters"),
 
-  amount: z.number().min(100, "Minimum service amount is ৳100"),
+  amount: z.number().finite().min(100, "Minimum service amount is ৳100"),
 });
 
-// Status badge styling
 function getStatusClassName(status: string) {
   switch (status) {
     case "PENDING":
@@ -72,7 +72,6 @@ function getStatusClassName(status: string) {
   }
 }
 
-// Format date
 function formatDate(date: string) {
   return new Intl.DateTimeFormat("en-BD", {
     timeZone: "Asia/Dhaka",
@@ -81,37 +80,51 @@ function formatDate(date: string) {
   }).format(new Date(date));
 }
 
-// Format BDT amount
 function formatAmount(amount: string) {
-  const value = Number(amount);
-
   return new Intl.NumberFormat("en-BD", {
     style: "currency",
     currency: "BDT",
     maximumFractionDigits: 2,
-  }).format(value);
+  }).format(Number(amount));
 }
 
-export default function MyRequestsPage() {
-  const [page, setPage] = useState(1);
-  const [showForm, setShowForm] = useState(false);
+function MyRequestsContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  // Separate state for manual Refresh button
+  const rawPage = Number(searchParams.get("page") ?? "1");
+
+  const page = Number.isSafeInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+
+  function updatePage(nextPage: number) {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (nextPage > 1) {
+      params.set("page", String(nextPage));
+    } else {
+      params.delete("page");
+    }
+
+    const query = params.toString();
+
+    router.push(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  }
+
+  const [showForm, setShowForm] = useState(false);
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
-  // Fetch service requests
   const requestsQuery = useMyServiceRequests({
     page,
-    limit: 5,
+    limit: PAGE_SIZE,
     sortBy: "createdAt",
     sortOrder: "desc",
   });
 
-  // Create service request mutation
   const createMutation = useCreateServiceRequest();
 
-  // Automatically refresh pending requests every 3 seconds.
-  // This does not trigger the manual Refresh icon animation.
   const hasPendingRequests =
     requestsQuery.data?.data?.some((request) => request.status === "PENDING") ??
     false;
@@ -132,24 +145,24 @@ export default function MyRequestsPage() {
     };
   }, [hasPendingRequests, refetchRequests]);
 
-  // Manual refresh
-  const handleManualRefresh = async () => {
-    if (isManualRefreshing) {
-      return;
-    }
+  async function handleManualRefresh() {
+    if (isManualRefreshing) return;
 
     setIsManualRefreshing(true);
 
     try {
-      await requestsQuery.refetch();
+      const result = await requestsQuery.refetch();
+
+      if (result.isError) {
+        throw result.error;
+      }
     } catch {
       toast.error("Failed to refresh service requests.");
     } finally {
       setIsManualRefreshing(false);
     }
-  };
+  }
 
-  // Request form
   const form = useForm({
     defaultValues: {
       title: "",
@@ -169,7 +182,6 @@ export default function MyRequestsPage() {
           parsed.error.issues[0]?.message ??
             "Please check your request details.",
         );
-
         return;
       }
 
@@ -183,7 +195,7 @@ export default function MyRequestsPage() {
         toast.success("Service request submitted successfully.");
 
         form.reset();
-        setPage(1);
+        updatePage(1);
         setShowForm(false);
       } catch (error) {
         toast.error(
@@ -353,7 +365,6 @@ export default function MyRequestsPage() {
               </CardDescription>
             </div>
 
-            {/* Manual Refresh button */}
             <Button
               variant="outline"
               size="sm"
@@ -377,7 +388,6 @@ export default function MyRequestsPage() {
               ))}
             </div>
           ) : requestsQuery.isError ? (
-            /* Error */
             <div className="flex min-h-40 flex-col items-center justify-center gap-3">
               <p className="text-sm text-destructive">
                 Failed to load service requests.
@@ -392,7 +402,6 @@ export default function MyRequestsPage() {
               </Button>
             </div>
           ) : requests.length > 0 ? (
-            /* Request list */
             <div className="space-y-3">
               {requests.map((request) => (
                 <div
@@ -451,7 +460,6 @@ export default function MyRequestsPage() {
               ))}
             </div>
           ) : (
-            /* Empty state */
             <div className="flex min-h-40 flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-center">
               <ClipboardList className="size-9 text-muted-foreground" />
 
@@ -465,7 +473,7 @@ export default function MyRequestsPage() {
 
           {/* Pagination */}
           {meta && meta.totalPages > 1 && (
-            <div className="flex items-center justify-between border-t pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
               <p className="text-sm text-muted-foreground">
                 Page {meta.page} of {meta.totalPages}
               </p>
@@ -475,7 +483,7 @@ export default function MyRequestsPage() {
                   variant="outline"
                   size="sm"
                   disabled={page <= 1 || requestsQuery.isFetching}
-                  onClick={() => setPage((previous) => previous - 1)}
+                  onClick={() => updatePage(page - 1)}
                 >
                   <ChevronLeft className="size-4" />
                   Previous
@@ -485,7 +493,7 @@ export default function MyRequestsPage() {
                   variant="outline"
                   size="sm"
                   disabled={page >= meta.totalPages || requestsQuery.isFetching}
-                  onClick={() => setPage((previous) => previous + 1)}
+                  onClick={() => updatePage(page + 1)}
                 >
                   Next
                   <ChevronRight className="size-4" />
@@ -496,5 +504,22 @@ export default function MyRequestsPage() {
         </CardContent>
       </Card>
     </section>
+  );
+}
+
+export default function MyRequestsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-56" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-28 w-full" />
+        </div>
+      }
+    >
+      <MyRequestsContent />
+    </Suspense>
   );
 }
