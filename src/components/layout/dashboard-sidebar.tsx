@@ -139,16 +139,21 @@ export default function DashboardSidebar({
   const links = sidebarLinks[role];
 
   return (
-    <aside className="flex h-full flex-col border-r bg-card">
-      <div className="flex h-16 items-center gap-2 border-b px-6">
-        <ShieldCheck className="size-6 text-primary" />
+    <aside className="flex h-full min-h-0 flex-col bg-card">
+      {/* Brand */}
+      <div className="flex h-16 shrink-0 items-center gap-2 border-b px-6">
+        <ShieldCheck className="size-6 shrink-0 text-primary" />
 
         <span className="text-xl font-bold">
           Grid<span className="text-primary">Guard</span>
         </span>
       </div>
 
-      <nav className="flex-1 space-y-1 p-4">
+      {/* Scrollable navigation */}
+      <nav
+        aria-label="Dashboard navigation"
+        className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4"
+      >
         {links.map((link) => {
           const Icon = link.icon;
 
@@ -162,27 +167,29 @@ export default function DashboardSidebar({
               key={link.href}
               href={link.href}
               onClick={onNavigate}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
+                "flex min-h-11 items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
                 isActive
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground",
               )}
             >
-              <Icon className="size-5" />
-              {link.label}
+              <Icon className="size-5 shrink-0" />
+              <span>{link.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t p-4">
+      {/* Footer */}
+      <div className="shrink-0 border-t p-4">
         <Link
           href="/"
           onClick={onNavigate}
-          className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+          className="flex min-h-11 items-center gap-3 rounded-lg px-4 py-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
         >
-          <House className="size-5" />
+          <House className="size-5 shrink-0" />
           Back to Home
         </Link>
       </div>

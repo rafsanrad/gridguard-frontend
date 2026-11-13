@@ -52,26 +52,29 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
 
   if (isPending || isError || !user || !isAuthorizedRoute) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading dashboard...</p>
+      <div className="flex min-h-dvh items-center justify-center">
+        <p role="status" className="text-muted-foreground">
+          Loading dashboard...
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-dvh min-w-0">
       {/* Desktop Sidebar */}
-      <div className="hidden w-64 shrink-0 md:block">
+      <div className="sticky top-0 hidden h-dvh w-64 shrink-0 border-r md:block">
         <DashboardSidebar role={user.role} />
       </div>
 
+      {/* Main Dashboard Area */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Mobile Navigation Header */}
-        <header className="flex h-16 items-center justify-between border-b px-4 md:hidden">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="size-6 text-primary" />
+        <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4 md:hidden">
+          <div className="flex min-w-0 items-center gap-2">
+            <ShieldCheck className="size-6 shrink-0 text-primary" />
 
-            <span className="text-lg font-bold">
+            <span className="truncate text-lg font-bold">
               Grid<span className="text-primary">Guard</span>
             </span>
           </div>
@@ -89,7 +92,10 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
               <Menu className="size-5" />
             </SheetTrigger>
 
-            <SheetContent side="left" className="w-64 p-0">
+            <SheetContent
+              side="left"
+              className="h-dvh w-64 max-w-[85vw] overflow-hidden p-0"
+            >
               <SheetHeader className="sr-only">
                 <SheetTitle>Dashboard navigation</SheetTitle>
               </SheetHeader>
@@ -106,7 +112,10 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         <DashboardHeader user={user} />
 
         {/* Dashboard Content */}
-        <main className="min-w-0 flex-1 bg-background p-4 sm:p-6">
+        <main
+          id="dashboard-content"
+          className="min-h-0 min-w-0 flex-1 bg-background p-4 sm:p-6"
+        >
           {children}
         </main>
       </div>
