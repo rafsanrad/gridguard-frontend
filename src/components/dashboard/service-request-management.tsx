@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+
 import {
   ChevronLeft,
   ChevronRight,
@@ -111,20 +113,136 @@ function getStatusVariant(
   switch (status) {
     case "COMPLETED":
       return "default";
+
     case "REJECTED":
     case "CANCELLED":
       return "destructive";
+
     case "APPROVED":
     case "IN_PROGRESS":
       return "outline";
+
     default:
       return "secondary";
   }
 }
 
-export default function ServiceRequestManagement() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+function ServiceRequestManagementContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const search = searchParams.get("search") ?? "";
+
+  const rawPage = Number(searchParams.get("page") ?? "1");
+
+  const page = Number.isSafeInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+
+  const [searchInput, setSearchInput] = useState(search);
+  const [previousSearch, setPreviousSearch] = useState(search);
+
+  // Synchronize the input when browser navigation changes the URL.
+  // This guarded render-time update avoids set-state-in-effect lint errors.
+  if (search !== previousSearch) {
+    setPreviousSearch(search);
+    setSearchInput(search);
+  }
+
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const searchParamsRef = useRef(searchParams.toString());
+
+  useEffect(() => {
+    searchParamsRef.current = searchParams.toString();
+  }, [searchParams]);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimer.current) {
+        clearTimeout(searchTimer.current);
+      }
+    };
+  }, []);
+
+  function updateQueryParams(
+    updates: Record<string, string | null>,
+    method: "push" | "replace" = "push",
+  ) {
+    const params = new URLSearchParams(searchParamsRef.current);
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    }
+
+    const query = params.toString();
+
+    const url = query ? `${pathname}?${query}` : pathname;
+
+    searchParamsRef.current = query;
+
+    if (method === "replace") {
+      router.replace(url, { scroll: false });
+    } else {
+      router.push(url, { scroll: false });
+    }
+  }
+
+  function handleSearchChange(value: string) {
+    setSearchInput(value);
+    setSelectedId(null);
+
+    if (searchTimer.current) {
+      clearTimeout(searchTimer.current);
+    }
+
+    searchTimer.current = setTimeout(() => {
+      updateQueryParams(
+        {
+          search: value.trim() || null,
+          page: null,
+        },
+        "replace",
+      );
+
+      searchTimer.current = null;
+    }, 350);
+  }
+
+  function clearSearch() {
+    if (searchTimer.current) {
+      clearTimeout(searchTimer.current);
+      searchTimer.current = null;
+    }
+
+    setSearchInput("");
+    setSelectedId(null);
+
+    updateQueryParams(
+      {
+        search: null,
+        page: null,
+      },
+      "replace",
+    );
+  }
+
+  function updatePage(nextPage: number) {
+    if (searchTimer.current) {
+      clearTimeout(searchTimer.current);
+      searchTimer.current = null;
+    }
+
+    setSelectedId(null);
+
+    updateQueryParams({
+      search: searchInput.trim() || null,
+      page: nextPage > 1 ? String(nextPage) : null,
+    });
+  }
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editRequest, setEditRequest] = useState<ServiceRequest | null>(null);
@@ -205,6 +323,7 @@ export default function ServiceRequestManagement() {
           <ClipboardList className="size-8 text-primary" />
           Service Request Management
         </h1>
+
         <p className="mt-2 text-muted-foreground">
           Review customer requests and manage their progress.
         </p>
@@ -213,6 +332,7 @@ export default function ServiceRequestManagement() {
       <Card>
         <CardHeader>
           <CardTitle>All Service Requests</CardTitle>
+
           <CardDescription>
             Search requests, review customer information, and update request
             details or status.
@@ -225,24 +345,18 @@ export default function ServiceRequestManagement() {
               <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
 
               <Input
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPage(1);
-                }}
+                value={searchInput}
+                onChange={(event) => handleSearchChange(event.target.value)}
                 placeholder="Search requests or customers..."
                 className="pr-9 pl-9"
               />
 
-              {search && (
+              {searchInput && (
                 <button
                   type="button"
                   aria-label="Clear search"
                   className="absolute top-1/2 right-3 -translate-y-1/2"
-                  onClick={() => {
-                    setSearch("");
-                    setPage(1);
-                  }}
+                  onClick={clearSearch}
                 >
                   <X className="size-4" />
                 </button>
@@ -280,6 +394,7 @@ export default function ServiceRequestManagement() {
               <p className="text-sm text-destructive">
                 Failed to load service requests.
               </p>
+
               <Button
                 variant="outline"
                 onClick={() => void requestsQuery.refetch()}
@@ -357,7 +472,7 @@ export default function ServiceRequestManagement() {
           )}
 
           {meta && totalPages > 1 && (
-            <div className="flex items-center justify-between gap-3 border-t pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
               <p className="text-sm text-muted-foreground">
                 Page {page} of {totalPages}
               </p>
@@ -367,7 +482,7 @@ export default function ServiceRequestManagement() {
                   variant="outline"
                   size="sm"
                   disabled={page <= 1 || requestsQuery.isFetching}
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  onClick={() => updatePage(Math.max(1, page - 1))}
                 >
                   <ChevronLeft className="size-4" />
                   Previous
@@ -377,9 +492,7 @@ export default function ServiceRequestManagement() {
                   variant="outline"
                   size="sm"
                   disabled={page >= totalPages || requestsQuery.isFetching}
-                  onClick={() =>
-                    setPage((current) => Math.min(totalPages, current + 1))
-                  }
+                  onClick={() => updatePage(Math.min(totalPages, page + 1))}
                 >
                   Next
                   <ChevronRight className="size-4" />
@@ -400,6 +513,7 @@ export default function ServiceRequestManagement() {
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Service Request Details</DialogTitle>
+
             <DialogDescription>
               Customer, request, and payment information.
             </DialogDescription>
@@ -415,6 +529,7 @@ export default function ServiceRequestManagement() {
             <div className="space-y-5 text-sm">
               <div>
                 <h3 className="font-semibold">{detailsQuery.data.title}</h3>
+
                 <p className="mt-1 text-muted-foreground">
                   {detailsQuery.data.description || "No description provided."}
                 </p>
@@ -434,7 +549,9 @@ export default function ServiceRequestManagement() {
                 <h4 className="font-semibold">Customer Information</h4>
 
                 <p>Name: {detailsQuery.data.customer?.name}</p>
+
                 <p>Email: {detailsQuery.data.customer?.email}</p>
+
                 <p>
                   Phone: {detailsQuery.data.customer?.phone || "Not provided"}
                 </p>
@@ -442,8 +559,11 @@ export default function ServiceRequestManagement() {
 
               <div className="space-y-2 border-t pt-4">
                 <h4 className="font-semibold">Dates</h4>
+
                 <p>Created: {formatDate(detailsQuery.data.createdAt)}</p>
+
                 <p>Updated: {formatDate(detailsQuery.data.updatedAt)}</p>
+
                 <p>Completed: {formatDate(detailsQuery.data.completedAt)}</p>
               </div>
 
@@ -467,9 +587,11 @@ export default function ServiceRequestManagement() {
                       <p>
                         Amount: {payment.amount} {payment.currency}
                       </p>
+
                       <p>
                         Transaction: {payment.transactionId || "Not available"}
                       </p>
+
                       <p>Paid: {formatDate(payment.paidAt)}</p>
                     </div>
                   ))
@@ -496,6 +618,7 @@ export default function ServiceRequestManagement() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit Service Request</DialogTitle>
+
             <DialogDescription>
               Update the request details and status.
             </DialogDescription>
@@ -504,6 +627,7 @@ export default function ServiceRequestManagement() {
           <div className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="request-title">Title</Label>
+
               <Input
                 id="request-title"
                 value={title}
@@ -514,6 +638,7 @@ export default function ServiceRequestManagement() {
 
             <div className="space-y-2">
               <Label htmlFor="request-description">Description</Label>
+
               <Textarea
                 id="request-description"
                 value={description}
@@ -579,5 +704,22 @@ export default function ServiceRequestManagement() {
         </DialogContent>
       </Dialog>
     </section>
+  );
+}
+
+export default function ServiceRequestManagement() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-72" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-36 w-full" />
+        </div>
+      }
+    >
+      <ServiceRequestManagementContent />
+    </Suspense>
   );
 }
